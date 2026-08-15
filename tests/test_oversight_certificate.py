@@ -5,6 +5,7 @@ passes `rfc8785.dumps`), which is all these tests need to exercise the oversight
 semantic (issue/verify/disposition/qualification-at-time)."""
 from __future__ import annotations
 
+import base64
 import json
 import os
 import sys
@@ -16,6 +17,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey 
 
 from oversight_certificate import (  # noqa: E402
     Disposition, Human, OversightCertificate, InvalidCertificate, issue, verify,
+    Aid, Assistance, Independence,
 )
 
 
@@ -131,6 +133,93 @@ class TestQualificationAtDecisionTime(Base):
             human=Human("u-7", "reviewer", credential_not_after="2026-09-01T00:00:00Z"))
         r = self.check(self.issued(cert), now="2030-01-01T00:00:00Z")
         self.assertTrue(r.ok, [f.code for f in r.findings])
+
+
+
+class TestAssistance(Base):
+    """How the judgement was formed (0.2.0). Declaring it must never cost anything."""
+
+    def cert(self, assistance):
+        return OversightCertificate(
+            id="d-1", action="publish-model-card", disposition=Disposition.DECIDED,
+            at="2026-08-12T10:00:00Z", basis="eu-ai-act-2024-1689-art-14",
+            evidence=("sha256:aa",),
+            human=Human("u-7", "notified-body-reviewer", credential_not_after="2027-01-01T00:00:00Z"),
+            assistance=assistance)
+
+    def test_an_undeclared_certificate_is_byte_identical_to_0_1_0(self):
+        """The load-bearing back-compat guarantee: signatures minted before 0.2.0
+        must still verify, which requires the canonical bytes to be unchanged."""
+        payload = DECIDED.to_payload()
+        self.assertNotIn("assistance", payload)
+        self.assertEqual(
+            canon(payload),
+            canon({"id": "d-1", "action": "publish-model-card", "disposition": "decided",
+                   "at": "2026-08-12T10:00:00Z", "basis": "eu-ai-act-2024-1689-art-14",
+                   "evidence": ["sha256:aa"],
+                   "human": {"id": "u-7", "qualification": "notified-body-reviewer",
+                             "credential_not_after": "2027-01-01T00:00:00Z"}}))
+        self.assertTrue(self.check(self.issued(DECIDED)).ok)
+
+    def test_silence_is_undeclared_not_unaided(self):
+        """Reading an absent field as 'unassisted' would manufacture the exact
+        reassurance the field exists to withhold."""
+        r = self.check(self.issued(DECIDED))
+        self.assertIs(r.independence, Independence.UNDECLARED)
+        self.assertIsNot(r.independence, Independence.UNAIDED)
+
+    def test_each_aid_maps_to_its_independence(self):
+        cases = [
+            (Assistance(Aid.UNAIDED), Independence.UNAIDED),
+            (Assistance(Aid.DETERMINISTIC, "actuarial-table-v3"), Independence.DETERMINISTIC),
+            (Assistance(Aid.MODEL, "some-llm", same_model_family=False), Independence.MODEL_INDEPENDENT),
+            (Assistance(Aid.MODEL, "some-llm", same_model_family=True), Independence.MODEL_CORRELATED),
+            (Assistance(Aid.MODEL, "some-llm"), Independence.MODEL_UNDETERMINED),
+        ]
+        for assistance, expected in cases:
+            with self.subTest(aid=assistance.aid.value, same=assistance.same_model_family):
+                r = self.check(self.issued(self.cert(assistance)))
+                self.assertIs(r.independence, expected)
+                self.assertTrue(r.ok, [f.code for f in r.findings])
+
+    def test_a_correlated_check_is_reported_and_still_valid(self):
+        """The non-punitive rule, pinned. A reviewer who declares they used a model
+        of the same family as the subject has told the truth about a real weakness;
+        penalising that would end the disclosure. Reported, never a finding."""
+        r = self.check(self.issued(self.cert(Assistance(Aid.MODEL, "same-family-llm", True))))
+        self.assertIs(r.independence, Independence.MODEL_CORRELATED)
+        self.assertTrue(r.ok)
+        self.assertEqual(r.findings, [])
+
+    def test_an_unstated_family_relationship_is_undetermined_not_assumed_independent(self):
+        r = self.check(self.issued(self.cert(Assistance(Aid.MODEL, "some-llm"))))
+        self.assertIs(r.independence, Independence.MODEL_UNDETERMINED)
+
+    def test_assistance_is_inside_the_signed_payload(self):
+        """It is a claim about the decision, so it must be bound into the signature —
+        not carried alongside where it could be stripped."""
+        env = self.issued(self.cert(Assistance(Aid.MODEL, "some-llm", True)))
+        payload = json.loads(base64.b64decode(env["payload"]))
+        self.assertEqual(payload["assistance"],
+                         {"aid": "model", "system": "some-llm", "same_model_family": True})
+
+        payload["assistance"]["same_model_family"] = False        # launder the correlation away
+        env["payload"] = base64.b64encode(canon(payload)).decode("ascii")
+        r = self.check(env)
+        self.assertFalse(r.ok)
+        self.assertIn("bad-signature", [f.code for f in r.findings])
+
+    def test_round_trip_recovers_the_declaration(self):
+        env = self.issued(self.cert(Assistance(Aid.MODEL, "some-llm", False)))
+        payload = json.loads(base64.b64decode(env["payload"]))
+        self.assertEqual(payload["assistance"]["system"], "some-llm")
+        self.assertIs(self.check(env).independence, Independence.MODEL_INDEPENDENT)
+
+    def test_declaring_assistance_adds_no_new_failure_mode(self):
+        """0.2.0 introduces no finding that 0.1.0 did not have."""
+        for assistance in (None, Assistance(Aid.UNAIDED), Assistance(Aid.MODEL, "x", True)):
+            with self.subTest(assistance=assistance):
+                self.assertTrue(self.check(self.issued(self.cert(assistance))).ok)
 
 
 if __name__ == "__main__":

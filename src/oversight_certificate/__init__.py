@@ -13,6 +13,22 @@ defect, but whether that oversight was *legally sufficient* stays with the
 auditor. Refusal is first-class: a decision is DECIDED, ESCALATED (routed to a
 human, pending, with evidence), or ABSTAINED (recorded, not forced).
 
+Since 0.2.0 a certificate may also declare **how the judgement was formed**
+(:class:`Assistance`). Art. 14 requires oversight by *natural persons*, and the
+settled audit schema records who reviewed what, when, under what information — but
+"under what information" is what was *shown to* the reviewer, never what the
+reviewer *consulted*. A reviewer who asked a model is indistinguishable from one
+who read the file. The concern is not only over-reliance: where the aid belongs to
+the same model family as the system under review, the check may inherit the
+subject's blind spot, and a check that is not independent is not oversight.
+
+Declaring it **never invalidates a certificate** — not even
+:attr:`Independence.MODEL_CORRELATED`. That is deliberate and load-bearing: a
+disclosure that can be used against the discloser stops being made (the ASRS
+non-punitive principle). Independence is *reported* on the :class:`Report`, never
+a :class:`Finding`, and an undeclared certificate stays exactly as valid as it was
+in 0.1.0.
+
 Composed, not reinvented — the caller injects the FOSS primitives (closed I/O):
 canonical bytes via RFC 8785 (pass ``rfc8785.dumps``), signatures via
 ``cryptography`` (Ed25519), wrapped in the in-toto DSSE envelope. This module owns
@@ -27,10 +43,11 @@ from enum import Enum
 from typing import Callable, Optional
 
 __all__ = [
-    "Disposition", "Human", "OversightCertificate", "Envelope",
+    "Disposition", "Human", "Aid", "Assistance", "Independence",
+    "OversightCertificate", "Envelope",
     "Finding", "Report", "issue", "verify", "InvalidCertificate",
 ]
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 DSSE_PAYLOAD_TYPE = "application/vnd.oversight-certificate+json"
 
@@ -60,6 +77,36 @@ class Human:
     credential_not_after: Optional[str] = None
 
 
+class Aid(str, Enum):
+    """What the overseer used to form the judgement. Self-declared."""
+    UNAIDED = "unaided"              # unassisted human judgement
+    DETERMINISTIC = "deterministic"  # a calculator, checklist, rule engine — no generative model
+    MODEL = "model"                  # a generative model assisted the judgement
+
+
+@dataclass(frozen=True)
+class Assistance:
+    """How the judgement was formed.
+
+    ``same_model_family`` is a proxy for *correlated failure* — an aid drawn from
+    the same family as the system under review may share its blind spot. ``None``
+    means the reviewer did not state the relationship, which is honest and common;
+    it yields :attr:`Independence.MODEL_UNDETERMINED` rather than a guess."""
+    aid: Aid
+    system: str = ""                            # optional identifier of the aid used
+    same_model_family: Optional[bool] = None     # only meaningful when aid is MODEL
+
+
+class Independence(str, Enum):
+    """Whether the check was independent of what it checked. Reported, never a finding."""
+    UNDECLARED = "undeclared"                    # the certificate makes no claim (all 0.1.0 records)
+    UNAIDED = "unaided"
+    DETERMINISTIC = "deterministic"
+    MODEL_INDEPENDENT = "model-independent"      # model aid, declared a different family
+    MODEL_CORRELATED = "model-correlated"        # model aid, declared the same family
+    MODEL_UNDETERMINED = "model-undetermined"    # model aid, relationship not stated
+
+
 @dataclass(frozen=True)
 class OversightCertificate:
     id: str
@@ -70,6 +117,7 @@ class OversightCertificate:
     evidence: tuple[str, ...] = ()     # content hashes of what the overseer was shown
     human: Optional[Human] = None      # who took responsibility (DECIDED)
     escalated_to: Optional[str] = None  # who a decision was routed to (ESCALATED)
+    assistance: Optional[Assistance] = None  # how the judgement was formed (0.2.0; optional)
 
     def to_payload(self) -> dict:
         d: dict = {
@@ -84,6 +132,13 @@ class OversightCertificate:
             }
         if self.escalated_to is not None:
             d["escalated_to"] = self.escalated_to
+        if self.assistance is not None:
+            a: dict = {"aid": self.assistance.aid.value}
+            if self.assistance.system:
+                a["system"] = self.assistance.system
+            if self.assistance.same_model_family is not None:
+                a["same_model_family"] = self.assistance.same_model_family
+            d["assistance"] = a
         return d
 
 
@@ -113,6 +168,8 @@ class Finding:
 class Report:
     ok: bool
     findings: "list[Finding]"
+    #: Whether the check was independent of what it checked. Never affects ``ok``.
+    independence: Independence = Independence.UNDECLARED
 
 
 def _pae(payload_type: str, body: bytes) -> bytes:
@@ -140,6 +197,24 @@ def _shape_findings(cert: OversightCertificate) -> "list[Finding]":
     return f
 
 
+def _independence(cert: OversightCertificate) -> Independence:
+    """Map a declared assistance onto the independence question. Pure; no findings.
+
+    An undeclared certificate is UNDECLARED, not UNAIDED — silence is not a claim
+    of unassisted judgement, and reading it as one would manufacture the very
+    reassurance this field exists to withhold."""
+    a = cert.assistance
+    if a is None:
+        return Independence.UNDECLARED
+    if a.aid is Aid.UNAIDED:
+        return Independence.UNAIDED
+    if a.aid is Aid.DETERMINISTIC:
+        return Independence.DETERMINISTIC
+    if a.same_model_family is None:
+        return Independence.MODEL_UNDETERMINED
+    return Independence.MODEL_CORRELATED if a.same_model_family else Independence.MODEL_INDEPENDENT
+
+
 def issue(cert: OversightCertificate, *,
           canonicalize: Callable[[dict], bytes],
           sign: Callable[[bytes], bytes],
@@ -162,12 +237,17 @@ def _from_payload(payload: dict) -> Optional[OversightCertificate]:
     try:
         h = payload.get("human")
         human = Human(h["id"], h["qualification"], h.get("credential_not_after")) if h else None
+        a = payload.get("assistance")
+        assistance = Assistance(
+            Aid(a["aid"]), a.get("system", ""), a.get("same_model_family"),
+        ) if a else None
         return OversightCertificate(
             id=payload["id"], action=payload["action"],
             disposition=Disposition(payload["disposition"]),
             at=payload["at"], basis=payload.get("basis", ""),
             evidence=tuple(payload.get("evidence", ())),
             human=human, escalated_to=payload.get("escalated_to"),
+            assistance=assistance,
         )
     except (KeyError, ValueError, TypeError):
         return None
@@ -187,7 +267,12 @@ def verify(envelope: dict, *,
     Checks: the DSSE signature; that the payload is in canonical form (signed bytes
     reproducible); shape coherence for the disposition; and — the distinctive one —
     that the overseer's credential was valid *at the decision time*, so a credential
-    that lapses *after* a valid decision does not retroactively void the record."""
+    that lapses *after* a valid decision does not retroactively void the record.
+
+    Also reports :attr:`Report.independence` — whether the check was independent of
+    what it checked. It is **never** a finding and never affects ``ok``, including
+    MODEL_CORRELATED: a disclosure that can be used against the discloser stops
+    being made."""
     findings: list[Finding] = []
     try:
         ptype = envelope["payloadType"]
@@ -209,6 +294,10 @@ def verify(envelope: dict, *,
         findings.append(Finding("unparseable-payload", "the payload is not a well-formed oversight certificate"))
         return Report(False, findings)
 
+    # Reported, never a finding: a declared correlation must not cost the discloser
+    # anything, or the declaration stops being made.
+    independence = _independence(cert)
+
     findings.extend(_shape_findings(cert))
 
     if (cert.disposition == Disposition.DECIDED and cert.human is not None
@@ -222,4 +311,4 @@ def verify(envelope: dict, *,
     if required_basis is not None and cert.basis != required_basis:
         findings.append(Finding("wrong-basis", f"expected basis {required_basis!r}, got {cert.basis!r}"))
 
-    return Report(not findings, findings)
+    return Report(not findings, findings, independence)

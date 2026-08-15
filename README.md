@@ -83,6 +83,53 @@ that had already lapsed *before* it is caught.
 - `OversightCertificate`, `Human`, `Disposition` (DECIDED / ESCALATED / ABSTAINED), `Envelope`
   (DSSE), `Report`, `Finding`, `InvalidCertificate`.
 
+## How the judgement was formed (0.2.0)
+
+Art. 14 requires oversight by *natural persons*, and the settled audit schema records who reviewed
+what, when, **under what information** — which is what was *shown to* the reviewer, never what the
+reviewer *consulted*. A reviewer who read the file and one who pasted it into a chatbot produce
+identical records. In 2026 that is no longer a hypothetical distinction.
+
+The concern is not only over-reliance, which is well studied. It is **correlated failure**: where
+the aid belongs to the same model family as the system under review, the check may inherit the
+subject's blind spot — and a check that is not independent of what it checks is not oversight.
+
+```python
+from oversight_certificate import Aid, Assistance, Independence
+
+cert = replace(cert, assistance=Assistance(Aid.MODEL, "some-llm", same_model_family=True))
+report = verify(issue(cert, canonicalize=dumps, sign=sign).to_dict(),
+                canonicalize=dumps, verify_sig=verify_sig, now="2026-08-15T00:00:00Z")
+print(report.ok, report.independence.value)
+```
+
+```
+True model-correlated
+```
+
+**That output is the design.** A reviewer who declares they used a model of the same family as the
+subject has disclosed a real weakness in their own check — and it costs them nothing. Independence
+is reported on the `Report`, **never** as a `Finding`, and never affects `ok`. A disclosure that
+can be used against the discloser stops being made; this follows the ASRS non-punitive principle
+rather than the compliance instinct.
+
+| `Report.independence` | meaning |
+|---|---|
+| `UNDECLARED` | the certificate makes no claim — every 0.1.0 record, and the default |
+| `UNAIDED` | unassisted human judgement |
+| `DETERMINISTIC` | a calculator, checklist or rule engine; no generative model |
+| `MODEL_INDEPENDENT` | a model aid, declared to be a different family from the subject |
+| `MODEL_CORRELATED` | a model aid, declared to be the same family — the check may not be independent |
+| `MODEL_UNDETERMINED` | a model aid, relationship not stated; not assumed independent |
+
+Two refusals worth naming. **Silence is `UNDECLARED`, not `UNAIDED`** — reading an absent field as
+"unassisted" would manufacture the exact reassurance the field exists to withhold. And an unstated
+family relationship is `MODEL_UNDETERMINED`, never `MODEL_INDEPENDENT`.
+
+**Fully back-compatible.** A certificate without `assistance` canonicalises to byte-identical
+payload, so signatures minted under 0.1.0 still verify; 0.2.0 introduces no finding that 0.1.0 did
+not have. Both are pinned by tests.
+
 ## Limitations
 
 - **Single signature.** One DSSE signature per envelope in this version; threshold/multi-sig is not
@@ -94,6 +141,13 @@ that had already lapsed *before* it is caught.
   for-cause revocation effective *before* the decision is out of scope for this version.
 - **It does not judge sufficiency.** `verify` locates structural and cryptographic defects; whether
   the oversight was legally adequate is the auditor's call, not the tool's.
+- **Assistance is self-declared and unverifiable.** A reviewer's own browser tab is outside any
+  enforcement boundary, so this records a claim, never an observation — and an overseer who does
+  not declare is indistinguishable from one who was unaided, which is why silence reads as
+  `UNDECLARED`. Its value is that the independence question can be asked at all, not that the
+  answer is enforced.
+- **`same_model_family` is a proxy.** The real property is correlated failure modes; shared family
+  is the observable stand-in for it, and two unrelated families can still share a blind spot.
 
 ## Origin & prior art
 
