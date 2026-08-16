@@ -85,14 +85,13 @@ that had already lapsed *before* it is caught.
 
 ## How the judgement was formed (0.2.0)
 
-Art. 14 requires oversight by *natural persons*, and the settled audit schema records who reviewed
-what, when, **under what information** — which is what was *shown to* the reviewer, never what the
-reviewer *consulted*. A reviewer who read the file and one who pasted it into a chatbot produce
-identical records. In 2026 that is no longer a hypothetical distinction.
+A certificate may declare how the reviewer reached the decision. Art. 14 requires oversight by
+natural persons, and the standard oversight record captures who reviewed what, when, and under
+what information — where "information" means what was shown to the reviewer, not what the reviewer
+consulted. A reviewer who read the file and one who asked a model produce identical records.
 
-The concern is not only over-reliance, which is well studied. It is **correlated failure**: where
-the aid belongs to the same model family as the system under review, the check may inherit the
-subject's blind spot — and a check that is not independent of what it checks is not oversight.
+The concern is not only over-reliance. Where the aid comes from the same model family as the
+system under review, the check may share the subject's failure modes.
 
 ```python
 from oversight_certificate import Aid, Assistance, Independence
@@ -107,28 +106,25 @@ print(report.ok, report.independence.value)
 True model-correlated
 ```
 
-**That output is the design.** A reviewer who declares they used a model of the same family as the
-subject has disclosed a real weakness in their own check — and it costs them nothing. Independence
-is reported on the `Report`, **never** as a `Finding`, and never affects `ok`. A disclosure that
-can be used against the discloser stops being made; this follows the ASRS non-punitive principle
-rather than the compliance instinct.
-
 | `Report.independence` | meaning |
 |---|---|
-| `UNDECLARED` | the certificate makes no claim — every 0.1.0 record, and the default |
+| `UNDECLARED` | no claim made — every 0.1.0 record, and the default |
 | `UNAIDED` | unassisted human judgement |
-| `DETERMINISTIC` | a calculator, checklist or rule engine; no generative model |
-| `MODEL_INDEPENDENT` | a model aid, declared to be a different family from the subject |
-| `MODEL_CORRELATED` | a model aid, declared to be the same family — the check may not be independent |
-| `MODEL_UNDETERMINED` | a model aid, relationship not stated; not assumed independent |
+| `DETERMINISTIC` | calculator, checklist or rule engine; no generative model |
+| `MODEL_INDEPENDENT` | model aid, declared a different family from the subject |
+| `MODEL_CORRELATED` | model aid, declared the same family |
+| `MODEL_UNDETERMINED` | model aid, relationship not stated |
 
-Two refusals worth naming. **Silence is `UNDECLARED`, not `UNAIDED`** — reading an absent field as
-"unassisted" would manufacture the exact reassurance the field exists to withhold. And an unstated
-family relationship is `MODEL_UNDETERMINED`, never `MODEL_INDEPENDENT`.
+Three rules govern the field:
 
-**Fully back-compatible.** A certificate without `assistance` canonicalises to byte-identical
-payload, so signatures minted under 0.1.0 still verify; 0.2.0 introduces no finding that 0.1.0 did
-not have. Both are pinned by tests.
+- **Declaring never invalidates a certificate**, `MODEL_CORRELATED` included. Independence is
+  reported on the `Report`, never as a `Finding`, and never affects `ok`. A disclosure that can be
+  used against the discloser stops being made (ASRS non-punitive principle).
+- **Silence reads `UNDECLARED`, not `UNAIDED`.** An absent field is not a claim of unassisted
+  judgement. An unstated family relationship reads `MODEL_UNDETERMINED`.
+- **Back-compatible.** A certificate without `assistance` canonicalises to byte-identical payload,
+  so 0.1.0 signatures still verify, and 0.2.0 adds no finding 0.1.0 did not have. Both are pinned
+  by tests.
 
 ## Limitations
 
@@ -141,13 +137,11 @@ not have. Both are pinned by tests.
   for-cause revocation effective *before* the decision is out of scope for this version.
 - **It does not judge sufficiency.** `verify` locates structural and cryptographic defects; whether
   the oversight was legally adequate is the auditor's call, not the tool's.
-- **Assistance is self-declared and unverifiable.** A reviewer's own browser tab is outside any
-  enforcement boundary, so this records a claim, never an observation — and an overseer who does
-  not declare is indistinguishable from one who was unaided, which is why silence reads as
-  `UNDECLARED`. Its value is that the independence question can be asked at all, not that the
-  answer is enforced.
-- **`same_model_family` is a proxy.** The real property is correlated failure modes; shared family
-  is the observable stand-in for it, and two unrelated families can still share a blind spot.
+- **Assistance is self-declared and unverifiable.** A reviewer's own tooling is outside any
+  enforcement boundary, so this records a claim, not an observation. Its value is that the
+  independence question can be asked, not that the answer is enforced.
+- **`same_model_family` is a proxy** for correlated failure modes. Two unrelated families can
+  still share a blind spot.
 
 ## Origin & prior art
 
