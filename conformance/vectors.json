@@ -1,0 +1,365 @@
+{
+  "schema": "oversight-certificate-conformance/1",
+  "package_version": "0.2.0",
+  "note": "Language-agnostic conformance vectors over the certificate SEMANTICS. Signature bytes are out of scope \u2014 a conforming runner may stub signature verification \u2014 because the distinctive layer here is the oversight semantic, not the DSSE envelope, which is specified elsewhere. `now` is 2026-08-15T00:00:00Z unless overridden. Findings are checked as a subset: the listed codes must be present.",
+  "now": "2026-08-15T00:00:00Z",
+  "vectors": [
+    {
+      "id": "valid-decided-verifies",
+      "note": "the ordinary case",
+      "certificate": {
+        "id": "d1",
+        "action": "approve",
+        "disposition": "decided",
+        "at": "2026-08-12T10:00:00Z",
+        "basis": "eu-ai-act-2024-1689-art-14",
+        "evidence": [
+          "sha256:aa"
+        ],
+        "human": {
+          "id": "u7",
+          "qualification": "notified-body-reviewer",
+          "credential_not_after": "2027-01-01T00:00:00Z"
+        }
+      },
+      "options": {},
+      "expect": {
+        "ok": true,
+        "findings": []
+      }
+    },
+    {
+      "id": "credential-lapsed-before-decision",
+      "note": "the distinctive rule: qualification is checked AT decision time",
+      "certificate": {
+        "id": "d1",
+        "action": "approve",
+        "disposition": "decided",
+        "at": "2026-08-12T10:00:00Z",
+        "basis": "eu-ai-act-2024-1689-art-14",
+        "evidence": [
+          "sha256:aa"
+        ],
+        "human": {
+          "id": "u7",
+          "qualification": "notified-body-reviewer",
+          "credential_not_after": "2026-01-01T00:00:00Z"
+        }
+      },
+      "options": {},
+      "expect": {
+        "ok": false,
+        "findings": [
+          "unqualified-at-decision"
+        ]
+      }
+    },
+    {
+      "id": "credential-lapsing-after-does-not-void",
+      "note": "a credential that lapses after a valid decision does not retroactively void the record",
+      "certificate": {
+        "id": "d1",
+        "action": "approve",
+        "disposition": "decided",
+        "at": "2026-08-12T10:00:00Z",
+        "basis": "eu-ai-act-2024-1689-art-14",
+        "evidence": [
+          "sha256:aa"
+        ],
+        "human": {
+          "id": "u7",
+          "qualification": "notified-body-reviewer",
+          "credential_not_after": "2026-08-13T00:00:00Z"
+        }
+      },
+      "options": {},
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "id": "decided-without-human",
+      "note": "a DECIDED certificate must name who took responsibility",
+      "certificate": {
+        "id": "d1",
+        "action": "approve",
+        "disposition": "decided",
+        "at": "2026-08-12T10:00:00Z",
+        "basis": "eu-ai-act-2024-1689-art-14",
+        "evidence": [
+          "sha256:aa"
+        ]
+      },
+      "options": {},
+      "expect": {
+        "ok": false,
+        "findings": [
+          "decided-without-human"
+        ]
+      }
+    },
+    {
+      "id": "decided-without-evidence",
+      "note": "it must record what the overseer was shown",
+      "certificate": {
+        "id": "d1",
+        "action": "approve",
+        "disposition": "decided",
+        "at": "2026-08-12T10:00:00Z",
+        "basis": "eu-ai-act-2024-1689-art-14",
+        "evidence": [],
+        "human": {
+          "id": "u7",
+          "qualification": "notified-body-reviewer",
+          "credential_not_after": "2027-01-01T00:00:00Z"
+        }
+      },
+      "options": {},
+      "expect": {
+        "ok": false,
+        "findings": [
+          "decided-without-evidence"
+        ]
+      }
+    },
+    {
+      "id": "no-legal-basis",
+      "note": "a certificate must name the obligation it discharges",
+      "certificate": {
+        "id": "d1",
+        "action": "approve",
+        "disposition": "decided",
+        "at": "2026-08-12T10:00:00Z",
+        "basis": "",
+        "evidence": [
+          "sha256:aa"
+        ],
+        "human": {
+          "id": "u7",
+          "qualification": "notified-body-reviewer",
+          "credential_not_after": "2027-01-01T00:00:00Z"
+        }
+      },
+      "options": {},
+      "expect": {
+        "ok": false,
+        "findings": [
+          "no-legal-basis"
+        ]
+      }
+    },
+    {
+      "id": "wrong-basis-when-required",
+      "note": "the auditor may demand a specific basis",
+      "certificate": {
+        "id": "d1",
+        "action": "approve",
+        "disposition": "decided",
+        "at": "2026-08-12T10:00:00Z",
+        "basis": "eu-ai-act-2024-1689-art-14",
+        "evidence": [
+          "sha256:aa"
+        ],
+        "human": {
+          "id": "u7",
+          "qualification": "notified-body-reviewer",
+          "credential_not_after": "2027-01-01T00:00:00Z"
+        }
+      },
+      "options": {
+        "required_basis": "other-obligation"
+      },
+      "expect": {
+        "ok": false,
+        "findings": [
+          "wrong-basis"
+        ]
+      }
+    },
+    {
+      "id": "escalated-carries-no-decision",
+      "note": "an ESCALATED certificate is pending; it must not carry a human decision",
+      "certificate": {
+        "id": "d1",
+        "action": "approve",
+        "disposition": "escalated",
+        "at": "2026-08-12T10:00:00Z",
+        "basis": "eu-ai-act-2024-1689-art-14",
+        "evidence": [
+          "sha256:aa"
+        ],
+        "human": {
+          "id": "u7",
+          "qualification": "notified-body-reviewer",
+          "credential_not_after": "2027-01-01T00:00:00Z"
+        },
+        "escalated_to": "board"
+      },
+      "options": {},
+      "expect": {
+        "ok": false,
+        "findings": [
+          "escalated-with-decision"
+        ]
+      }
+    },
+    {
+      "id": "escalated-needs-a-target",
+      "note": "it must name who it was routed to",
+      "certificate": {
+        "id": "d1",
+        "action": "approve",
+        "disposition": "escalated",
+        "at": "2026-08-12T10:00:00Z",
+        "basis": "eu-ai-act-2024-1689-art-14",
+        "evidence": [
+          "sha256:aa"
+        ]
+      },
+      "options": {},
+      "expect": {
+        "ok": false,
+        "findings": [
+          "escalated-without-target"
+        ]
+      }
+    },
+    {
+      "id": "undeclared-assistance-is-not-unaided",
+      "note": "silence is UNDECLARED; reading an absent field as unassisted manufactures the reassurance it exists to withhold",
+      "certificate": {
+        "id": "d1",
+        "action": "approve",
+        "disposition": "decided",
+        "at": "2026-08-12T10:00:00Z",
+        "basis": "eu-ai-act-2024-1689-art-14",
+        "evidence": [
+          "sha256:aa"
+        ],
+        "human": {
+          "id": "u7",
+          "qualification": "notified-body-reviewer",
+          "credential_not_after": "2027-01-01T00:00:00Z"
+        }
+      },
+      "options": {},
+      "expect": {
+        "independence": "undeclared"
+      }
+    },
+    {
+      "id": "model-correlated-is-reported-and-still-valid",
+      "note": "a disclosure that can be used against the discloser stops being made; independence is never a finding",
+      "certificate": {
+        "id": "d1",
+        "action": "approve",
+        "disposition": "decided",
+        "at": "2026-08-12T10:00:00Z",
+        "basis": "eu-ai-act-2024-1689-art-14",
+        "evidence": [
+          "sha256:aa"
+        ],
+        "human": {
+          "id": "u7",
+          "qualification": "notified-body-reviewer",
+          "credential_not_after": "2027-01-01T00:00:00Z"
+        },
+        "assistance": {
+          "aid": "model",
+          "system": "x",
+          "same_model_family": true
+        }
+      },
+      "options": {},
+      "expect": {
+        "ok": true,
+        "findings": [],
+        "independence": "model-correlated"
+      }
+    },
+    {
+      "id": "model-independent",
+      "note": "a model aid declared to be a different family",
+      "certificate": {
+        "id": "d1",
+        "action": "approve",
+        "disposition": "decided",
+        "at": "2026-08-12T10:00:00Z",
+        "basis": "eu-ai-act-2024-1689-art-14",
+        "evidence": [
+          "sha256:aa"
+        ],
+        "human": {
+          "id": "u7",
+          "qualification": "notified-body-reviewer",
+          "credential_not_after": "2027-01-01T00:00:00Z"
+        },
+        "assistance": {
+          "aid": "model",
+          "system": "x",
+          "same_model_family": false
+        }
+      },
+      "options": {},
+      "expect": {
+        "ok": true,
+        "independence": "model-independent"
+      }
+    },
+    {
+      "id": "model-family-unstated-is-undetermined",
+      "note": "never assumed independent",
+      "certificate": {
+        "id": "d1",
+        "action": "approve",
+        "disposition": "decided",
+        "at": "2026-08-12T10:00:00Z",
+        "basis": "eu-ai-act-2024-1689-art-14",
+        "evidence": [
+          "sha256:aa"
+        ],
+        "human": {
+          "id": "u7",
+          "qualification": "notified-body-reviewer",
+          "credential_not_after": "2027-01-01T00:00:00Z"
+        },
+        "assistance": {
+          "aid": "model",
+          "system": "x"
+        }
+      },
+      "options": {},
+      "expect": {
+        "ok": true,
+        "independence": "model-undetermined"
+      }
+    },
+    {
+      "id": "unaided-and-deterministic",
+      "note": "the two non-model declarations",
+      "certificate": {
+        "id": "d1",
+        "action": "approve",
+        "disposition": "decided",
+        "at": "2026-08-12T10:00:00Z",
+        "basis": "eu-ai-act-2024-1689-art-14",
+        "evidence": [
+          "sha256:aa"
+        ],
+        "human": {
+          "id": "u7",
+          "qualification": "notified-body-reviewer",
+          "credential_not_after": "2027-01-01T00:00:00Z"
+        },
+        "assistance": {
+          "aid": "deterministic",
+          "system": "checklist"
+        }
+      },
+      "options": {},
+      "expect": {
+        "independence": "deterministic"
+      }
+    }
+  ]
+}
