@@ -222,5 +222,38 @@ class TestAssistance(Base):
                 self.assertTrue(self.check(self.issued(self.cert(assistance))).ok)
 
 
+
+class TestDSSEInterop(unittest.TestCase):
+    """Checks the README's interoperability claim against securesystemslib, the
+    in-toto/TUF reference implementation, rather than against our own verifier.
+    Skips when absent so the core suite stays dependency-free."""
+
+    def setUp(self):
+        try:
+            from securesystemslib.dsse import Envelope  # noqa: F401
+        except ImportError:
+            self.skipTest("securesystemslib not installed")
+
+    def test_a_third_party_implementation_parses_our_envelope(self):
+        from securesystemslib.dsse import Envelope
+
+        priv = Ed25519PrivateKey.from_private_bytes(bytes(32))
+        envelope = issue(DECIDED, canonicalize=canon, sign=priv.sign).to_dict()
+        theirs = Envelope.from_dict(envelope)
+        self.assertEqual(theirs.payload_type, "application/vnd.oversight-certificate+json")
+        self.assertEqual(json.loads(theirs.payload)["id"], DECIDED.id)
+
+    def test_their_pae_is_byte_identical_to_ours(self):
+        """PAE is what gets signed. A one-byte difference makes every signature we
+        produce unverifiable to the ecosystem."""
+        from securesystemslib.dsse import Envelope
+        from oversight_certificate import _pae, DSSE_PAYLOAD_TYPE
+
+        priv = Ed25519PrivateKey.from_private_bytes(bytes(32))
+        envelope = issue(DECIDED, canonicalize=canon, sign=priv.sign).to_dict()
+        payload = base64.b64decode(envelope["payload"])
+        self.assertEqual(Envelope.from_dict(envelope).pae(), _pae(DSSE_PAYLOAD_TYPE, payload))
+
+
 if __name__ == "__main__":
     unittest.main()
