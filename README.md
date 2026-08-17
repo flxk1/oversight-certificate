@@ -15,17 +15,14 @@ sufficient* stays with the auditor. **Refusal is first-class**: a decision is `D
 ## Install
 
 ```bash
-pip install "oversight-certificate[recommended]"
-```
-
-Stdlib-only core; FOSS primitives are injected, not bundled. The `recommended` extra pulls
-`cryptography` and `rfc8785`, which the examples use — the core needs neither. Or straight from the repository, no release required:
-
-```bash
 pip install "oversight-certificate[recommended] @ git+https://github.com/flxk1/oversight-certificate"
 ```
 
-Tests: `pip install ".[test]"` from a clone.
+Stdlib-only core; FOSS primitives are injected, not bundled. The `recommended` extra pulls
+`cryptography` and `rfc8785`, which the examples use — the core needs neither.
+
+Distributed from this repository; there is no package-index release. Tests:
+`pip install ".[test]"` from a clone.
 
 ## Usage
 
