@@ -15,12 +15,17 @@ sufficient* stays with the auditor. **Refusal is first-class**: a decision is `D
 ## Install
 
 ```bash
-pip install .
+pip install "oversight-certificate[recommended] @ git+https://github.com/flxk1/oversight-certificate"
 ```
 
-Stdlib-only core — you inject the FOSS primitives (closed I/O): the test suite needs `pytest`
-(`pip install ".[test]"`); the usage example needs `pip install ".[recommended]"` (`cryptography`
-for Ed25519, `rfc8785` for canonical bytes).
+Stdlib-only core; you inject the FOSS primitives (closed I/O). The `recommended` extra pulls `cryptography` and `rfc8785`, which the examples use — the core
+needs neither. Without the extra:
+
+```bash
+pip install "git+https://github.com/flxk1/oversight-certificate"
+```
+
+Tests: `pip install ".[test]"` from a clone. **Not yet on PyPI**, so the git URL is the install.
 
 ## Usage
 
