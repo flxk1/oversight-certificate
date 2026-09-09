@@ -9,4 +9,3 @@ dist/
 .ort-out/
 work/
 .DS_Store
-/.github/workflows/

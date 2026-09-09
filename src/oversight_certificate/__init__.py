@@ -47,7 +47,7 @@ __all__ = [
     "OversightCertificate", "Envelope",
     "Finding", "Report", "issue", "verify", "InvalidCertificate",
 ]
-__version__ = "0.2.0"
+from ._version import __version__
 
 DSSE_PAYLOAD_TYPE = "application/vnd.oversight-certificate+json"
 

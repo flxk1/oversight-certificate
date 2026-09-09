@@ -4,20 +4,28 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oversight-certificate"
-version = "0.2.0"
 description = "A re-checkable certificate that a qualified human exercised meaningful oversight — refuse-to-decide first-class, verifiable offline."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
+license-files = ["LICENSES/*", "NOTICE"]
 authors = [{ name = "flxk1" }]
 dependencies = []
+dynamic = ["version"]
 
 [project.optional-dependencies]
 recommended = ["cryptography>=42.0", "rfc8785>=0.1.2"]
 test = ["pytest>=7", "cryptography>=42.0", "rfc8785>=0.1.2", "securesystemslib>=1.0"]
+
+[tool.setuptools.dynamic]
+version = { attr = "oversight_certificate._version.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
 oversight_certificate = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

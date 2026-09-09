@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Repository laid out on the measure skeleton: `LICENSES/MIT.txt` + `NOTICE` + `REUSE.toml` replace the bare `LICENSE`; `MANIFEST.in` dropped; version single-sourced from `src/oversight_certificate/_version.py`; CI workflow and release-please config added.
+
 ## 0.2.0 — 2026-08-15
 
 `Assistance` — a certificate may now declare **how the judgement was formed**: unaided, aided by a
