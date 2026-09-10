@@ -2,6 +2,10 @@
 
 Signed, offline-verifiable certificate that a qualified human decided, escalated or abstained on one action, on named evidence and legal basis.
 
+## Problem
+
+"A human approved it" is a log line. A signed, offline-verifiable certificate of who decided, on what, under which basis.
+
 ## Install
 
 `pip install "oversight-certificate[recommended] @ git+https://github.com/flxk1/oversight-certificate"`
@@ -11,6 +15,16 @@ Signed, offline-verifiable certificate that a qualified human decided, escalated
 ```python
 envelope = issue(cert, canonicalize=dumps, sign=sign).to_dict()
 report = verify(envelope, canonicalize=dumps, verify_sig=verify_sig, now="2030-01-01T00:00:00Z")
+```
+
+## Example
+
+```
+in : issue(OversightCertificate("oc-1", "data_transfer:t1", Disposition.DECIDED, "2026-09-09T10:00:00Z", basis="gdpr-2016-679-art-44",
+       evidence=("sha256:4da8b3468ad57b8a4e6c6d2a741876e1b3f00eb8c974df29e540c9517e2a88d2",), human=Human("dpo-01", "dpo")), canonicalize=dumps, sign=key.sign).to_dict()
+     verify(envelope, canonicalize=dumps, verify_sig=verify_sig, now="2026-09-09T10:00:01Z")
+out: {"payloadType": "application/vnd.oversight-certificate+json", "payload": "eyJhY3Rpb24iOiJkYXRhX3RyYW5zZmVyOnQx…
+     Report(ok=True, findings=[], independence=<Independence.UNDECLARED: 'undeclared'>)
 ```
 
 ## Interface
