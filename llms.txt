@@ -1,0 +1,26 @@
+# oversight-certificate
+
+> Signed, offline-verifiable certificate that a qualified human decided, escalated or abstained on one action, on named evidence and legal basis.
+
+## Problem
+"A human approved it" is a log line. A signed, offline-verifiable certificate of who decided, on what, under which basis.
+
+## Install
+`pip install "oversight-certificate[recommended] @ git+https://github.com/flxk1/oversight-certificate"`
+
+## Usage
+```python
+envelope = issue(cert, canonicalize=dumps, sign=sign).to_dict()
+report = verify(envelope, canonicalize=dumps, verify_sig=verify_sig, now="2030-01-01T00:00:00Z")
+```
+
+## Interface
+- `OversightCertificate(id, action, disposition, at, basis, evidence=(), human=None, escalated_to=None, assistance=None)`; `Disposition`: DECIDED, ESCALATED, ABSTAINED; `Human(id, qualification, credential_not_after=None)`
+- `issue(cert, *, canonicalize, sign, keyid="") -> Envelope` (DSSE); raises `InvalidCertificate`
+- `verify(envelope, *, canonicalize, verify_sig, now, required_basis=None) -> Report(ok, findings, independence)`; `Finding.code`, e.g. `unqualified-at-decision`
+- limits: one signature per envelope; caller supplies RFC 8785 canonicaliser and Ed25519 keys; credential validity read from the certificate; sufficiency left to the auditor ([docs/limitations.md](docs/limitations.md))
+
+## Family
+Assurance artifact, pillar "oversight" of [governance-certification](https://github.com/flxk1/governance-certification); embeds as its `overseen` sub-attestation. Docs: [docs/](docs/).
+
+Language: loomground — guide https://github.com/flxk1/loomground/blob/main/llms.txt (the .lg language an agent reads, emits, validates); catalogue https://github.com/flxk1/loomground/blob/main/CATALOGUE.json
