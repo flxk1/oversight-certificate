@@ -79,7 +79,7 @@ that had already lapsed *before* it is caught.
   envelope, sign the PAE. Refuses to mint a structurally-incoherent certificate
   (`InvalidCertificate`). The signing key is never read — `sign` is your closed function.
 - `verify(envelope, *, canonicalize, verify_sig, now, required_basis=None) -> Report` — re-check
-  from the envelope + a public verify function alone. Returns `Report(ok, findings)`; each `Finding`
+  from the envelope + a public verify function alone. Returns `Report(ok, findings, independence)`; each `Finding`
   names *what* is wrong (bad-signature, non-canonical-payload, decided-without-human,
   escalated-without-target, unqualified-at-decision, wrong-basis, …). It never rules on legal
   sufficiency.
